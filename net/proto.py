@@ -33,8 +33,10 @@ class CommunicationDaemon(object):
         self.connection = False
         self.try_timeout = 50
         self.running = True
+        self.logger.info(f"Connection Daemon Initialized @ client{target} @ server{server}")
+        self.server = socket.create_server(address=self.server_addr, family=socket.AF_INET)
 
-
+        self.logger.info(f"Server Created on {self.server_addr}")
 
     def send(self, data, status="CON"):
         """
@@ -119,32 +121,28 @@ class CommunicationDaemon(object):
 
     #main program loops for cat5 I/O
 
-    async def server(self):
-        server = socket.create_server(address=self.server_addr, family=socket.AF_INET)
-        server.setblocking(True)
-        server.listen()
+    async def server_loop(self):
+        self.server.listen()
         while self.running:
-            conn, addr = server.accept()
+            self.logger.info(f"Attempting to Accept Connection")
+            conn, addr = self.server.accept()
             self.logger.info(f"Connected to {addr}")
             with conn as c:
                 if (r := self.recv(c))[1] != "ACK" and r != (None, "CON"):
                     self.recv_buffer.put_nowait(r)
             await asyncio.sleep(0.1)
 
-    async def client(self):
+    async def client_loop(self):
         tries = 50
         i = 0
         while i < tries:
             try:
                 client = socket.create_connection(self.target_addr)
                 client.setblocking(0)
-                print("\r"*100, end="")
-                print(f"Connected Successfully to {self.target_addr}")
+                self.logger.info(f"Connected Successfully to {self.target_addr}")
                 break
             except ConnectionRefusedError as e:
-
-                print(f"\rTried Connecting to {self.target_addr}\t{i+1}/{tries} {str(e)[:16]}", end="")
-                sleep(0.5)
+                self.logger.info(f"Tried Connecting to {self.target_addr}\t{i+1}/{tries} {str(e)[:16]}")
                 if i == 49:
                     raise("Could Not Connect")
                 i+=1
@@ -173,10 +171,10 @@ async def main(methods:list):
 
 if __name__ == "__main__":
     logging.basicConfig(filename="test.log", level=logging.INFO, filemode="w")
-    c = CommunicationDaemon(target=("127.0.0.1", 999), server=("", 999))
+    c = CommunicationDaemon(target=("127.0.0.1", 999), server=("127.0.0.1", 999))
     loop = asyncio.get_event_loop()
     async def main():
-        coros = [c.client(), c.server()]
+        coros = [c.client_loop(), c.server_loop()]
         res = await asyncio.gather(*coros)
     loop.run_until_complete(main())
 
