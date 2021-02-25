@@ -5,6 +5,7 @@ import logging
 from time import sleep
 import socket
 import sys
+
 def pack(data, status:str):
     pickled = pickle.dumps(data)
     return bytearray(f"ZZZ{str(status)}BBB{len(pickled)}C".encode()) + pickled
@@ -26,37 +27,14 @@ class CommunicationDaemon(object):
     recv_buffer = Stack(maxsize=200)
     send_buffer = Stack(maxsize=200)
 
-    def __init__(self, target, port):
-        self.target, self.port = target, port
+    def __init__(self, server, target):
+        self.target_addr, self.server_addr = target, server
         self.logger = logging.getLogger()
         self.connection = False
         self.try_timeout = 50
-        self.c = socket.create_connection((target, port))
-        self.s = socket.create_server(address=("", port), family=socket.AF_INET)
-        self.s.listen()
-        self.establish_connection()
+        self.running = True
 
-    def clear_device_buffer(self):
-        logging.debug("Clearing Socket Buffer")
-        while (out := self.recv())[1] == "ACK": continue
 
-    def establish_connection(self):
-        self.conn, self.addr = self.s.accept()
-        pkt=self.id
-        i = 1
-        while not self.connection and i <=self.try_timeout:
-            self.send(pkt, status="ACK")
-            if (r := self.recv())[1] == "ACK":
-                self.connection = True
-                self.logger.info(f"Successfully connected to ID: {r[0]}\tpacket status {r[1]}")
-                self.clear_device_buffer()
-                return
-            else:
-                self.logger.warning(f"Try: {i} Waiting to receive ACK connection packet")
-                sleep(3) #wait 3 seconds for packet
-                i += 1
-        raise("Connection failed")
-        exit(-1)
 
     def send(self, data, status="CON"):
         """
@@ -73,7 +51,7 @@ class CommunicationDaemon(object):
     def to_send(self, data, status="CON"):
         self.send_buffer.put(pack(data, status))
 
-    def recv(self):
+    def recv(self, conn):
         """
         unpack algo for serial buffers
 
@@ -93,8 +71,8 @@ class CommunicationDaemon(object):
             for i in meta.keys(): meta[i] = ""
             return (None, "CON")
         while True:
-            if not len(self.conn.recv(1, socket.MSG_PEEK)) > 0: return (None, "CON")
-            i = self.conn.recv(1)
+            if not len(conn.recv(1, socket.MSG_PEEK)) > 0: return (None, "CON")
+            i = conn.recv(1)
             if chr(i) == "Z" and flags["Z"] < 3:
                 flags["Z"] += 1
                 continue
@@ -116,7 +94,7 @@ class CommunicationDaemon(object):
                 #super().read(1) #kick "C" out of the serial buffer
                 self.logger.debug(f"Attempting to load packet of size {meta['length']}")
                 packet = (
-                    pickle.loads(self.conn.recv(int(meta["length"]))),
+                    pickle.loads(conn.recv(int(meta["length"]))),
                     meta["status"]
                 )
                 self.logger.debug(f"Received Packet of size {sys.getsizeof(packet[0])} Bytes with Network Status {packet[1]}")
@@ -136,6 +114,50 @@ class CommunicationDaemon(object):
                 self._send(self.send_buffer.get_nowait())
             await asyncio.sleep(0.15)
 
+
+###########################################################################################
+
+    #main program loops for cat5 I/O
+
+    async def server(self):
+        server = socket.create_server(address=self.server_addr, family=socket.AF_INET)
+        server.setblocking(True)
+        server.listen()
+        while self.running:
+            conn, addr = server.accept()
+            self.logger.info(f"Connected to {addr}")
+            with conn as c:
+                if (r := self.recv(c))[1] != "ACK" and r != (None, "CON"):
+                    self.recv_buffer.put_nowait(r)
+            await asyncio.sleep(0.1)
+
+    async def client(self):
+        tries = 50
+        i = 0
+        while i < tries:
+            try:
+                client = socket.create_connection(self.target_addr)
+                client.setblocking(0)
+                print("\r"*100, end="")
+                print(f"Connected Successfully to {self.target_addr}")
+                break
+            except ConnectionRefusedError as e:
+
+                print(f"\rTried Connecting to {self.target_addr}\t{i+1}/{tries} {str(e)[:16]}", end="")
+                sleep(0.5)
+                if i == 49:
+                    raise("Could Not Connect")
+                i+=1
+
+        while self.running:
+            if not self.send_buffer.empty():
+                pkt = pack(self.send_buffer.get_nowait())
+                client.sendall(pkt)
+                self.logger.info(f"Sent {self.target[0]}:{self.target[1]} {len(pkt)} bytes.")
+
+            await asyncio.sleep(0.1)
+
+#####################################################################################################
     def from_recv(self):
         #manual recv
         if self.recv_buffer.empty():
@@ -146,6 +168,17 @@ class CommunicationDaemon(object):
     def close_with_FIN(self):
         self.send("BYE!",status= "FIN")
 
+async def main(methods:list):
+    await asyncio.gather(*methods)
+
 if __name__ == "__main__":
-    c = CommunicationDaemon("192.168.1.2", 999)
+    logging.basicConfig(filename="test.log", level=logging.INFO, filemode="w")
+    c = CommunicationDaemon(target=("127.0.0.1", 999), server=("", 999))
+    loop = asyncio.get_event_loop()
+    async def main():
+        coros = [c.client(), c.server()]
+        res = await asyncio.gather(*coros)
+    loop.run_until_complete(main())
+
+
 
