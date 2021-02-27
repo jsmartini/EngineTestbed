@@ -40,7 +40,9 @@ class Net:
                     self.logger.info(f"\rFailed to Connect to {target}:{port} ({i}/{tries})")
         else:
             while not self.socket.routing_table:
+                self.logger.info("Waiting for Connection")
                 sleep(1)
+            self.logger.info("Connected")
         if isinstance(data_backup, DataBackup):
             self.data_backup = data_backup
         else:
