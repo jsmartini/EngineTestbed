@@ -12,7 +12,7 @@ def pack(data, status:str):
 
 class CommunicationDaemon(object):
     """
-    z9c structure           ||              socket server/client for cat5 wired communication adapted from z9c class @ deimos II avionics
+    z9c structure           ||              socket hardwareNetwork/terminalNetwork for cat5 wired communication adapted from z9c class @ deimos II avionics
 
     z9c.send -> non async send
     z9c._send -> send function for async processes
@@ -33,7 +33,7 @@ class CommunicationDaemon(object):
         self.connection = False
         self.try_timeout = 50
         self.running = True
-        self.logger.info(f"Connection Daemon Initialized @ client{target} @ server{server}")
+        self.logger.info(f"Connection Daemon Initialized @ terminalNetwork{target} @ hardwareNetwork{server}")
         self.server = socket.create_server(address=self.server_addr, family=socket.AF_INET)
 
         self.logger.info(f"Server Created on {self.server_addr}")
@@ -73,7 +73,9 @@ class CommunicationDaemon(object):
             for i in meta.keys(): meta[i] = ""
             return (None, "CON")
         while True:
+            self.logger.info(conn.recv(1, socket.MSG_PEEK))
             if not len(conn.recv(1, socket.MSG_PEEK)) > 0: return (None, "CON")
+            self.logger.info("Running")
             i = conn.recv(1)
             if chr(i) == "Z" and flags["Z"] < 3:
                 flags["Z"] += 1
@@ -126,11 +128,14 @@ class CommunicationDaemon(object):
         while self.running:
             self.logger.info(f"Attempting to Accept Connection")
             conn, addr = self.server.accept()
-            self.logger.info(f"Connected to {addr}")
-            with conn as c:
-                if (r := self.recv(c))[1] != "ACK" and r != (None, "CON"):
-                    self.recv_buffer.put_nowait(r)
-            await asyncio.sleep(0.1)
+            self.logger.info(f"Server Connected to {addr}")
+            while True:
+                with conn as c:
+                    self.logger.info("Running Conn")
+                    if (r := self.recv(c))[1] != "ACK" and r != (None, "CON"):
+                        self.logger.debug(r)
+                        self.recv_buffer.put_nowait(r)
+                await asyncio.sleep(0.1)
 
     async def client_loop(self):
         tries = 50
@@ -139,7 +144,7 @@ class CommunicationDaemon(object):
             try:
                 client = socket.create_connection(self.target_addr)
                 client.setblocking(0)
-                self.logger.info(f"Connected Successfully to {self.target_addr}")
+                self.logger.info(f"Client Connected Successfully to {self.target_addr}")
                 break
             except ConnectionRefusedError as e:
                 self.logger.info(f"Tried Connecting to {self.target_addr}\t{i+1}/{tries} {str(e)[:16]}")
@@ -155,6 +160,7 @@ class CommunicationDaemon(object):
 
             await asyncio.sleep(0.1)
 
+
 #####################################################################################################
     def from_recv(self):
         #manual recv
@@ -169,12 +175,20 @@ class CommunicationDaemon(object):
 async def main(methods:list):
     await asyncio.gather(*methods)
 
+async def echo_program(c:CommunicationDaemon):
+        while True:
+            c.logger.info("Running Loop")
+            c.send("Hi", status="ECHO")
+            c.logger.info("Send Data")
+            c.logger.info(c.from_recv())
+            await asyncio.sleep(0.1)
+
 if __name__ == "__main__":
     logging.basicConfig(filename="test.log", level=logging.INFO, filemode="w")
     c = CommunicationDaemon(target=("127.0.0.1", 999), server=("127.0.0.1", 999))
     loop = asyncio.get_event_loop()
     async def main():
-        coros = [c.client_loop(), c.server_loop()]
+        coros = [c.client_loop(), c.server_loop(), echo_program(c)]
         res = await asyncio.gather(*coros)
     loop.run_until_complete(main())
 

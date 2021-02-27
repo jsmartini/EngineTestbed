@@ -1,5 +1,5 @@
 net:
-  #static ip and port to intranet direct ethernet connection to client host
+  #static ip and port to intranet direct ethernet connection to terminalNetwork host
   target_ip:
   target_port:
 

@@ -28,16 +28,10 @@ class GPIOHypervisor:
     def cmd(self, cmd:dict):
         pass
 
-    def _pop_cmd(self):
-        pass
-
-    def _push_data(self):
+    def _push_data(self, data):
         pass
 
     def get_Latest_data(self):
-        pass
-
-    async def cmd_loop(self):
         pass
 
     def get_status(self):
@@ -45,6 +39,13 @@ class GPIOHypervisor:
 
     def _EMERGENCY_FAILSAFE(self):
         pass
+
+    async def GPIO_loop(self):
+        while True:
+            self._push_data(self.get_Latest_data())
+            if not self.COMMAND_BUFFER.empty():
+                pass
+
 
 if __name__ == "__main__":
     #testing
