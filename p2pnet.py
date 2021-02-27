@@ -4,6 +4,7 @@ import logging
 from time import sleep
 import asyncio
 import json
+from testbed.miscutils.util import DataBackup
 
 class Net:
 
@@ -15,7 +16,7 @@ class Net:
         port=4444,
     )
 
-    def __init__(self, target, port, tries = 100, node_type = True):
+    def __init__(self, target, port, tries = 100, node_type = True, data_backup = None):
         """
 
         py2p documentation (p2p-project)
@@ -28,7 +29,7 @@ class Net:
                 -if both try to connect at once it disconnects both
 
         """
-        self.logger = logging.getLogger("Network")
+        self.logger = logging.getLogger("Networking")
         if node_type:
             for i in range(tries):
                 try:
@@ -39,6 +40,10 @@ class Net:
         else:
             while not self.socket.routing_table:
                 sleep(1)
+        if isinstance(data_backup, DataBackup):
+            self.data_backup = data_backup
+        else:
+            self.data_backup = None
 
     @socket.on("connect")
     def connection(self):
@@ -47,13 +52,17 @@ class Net:
     @socket.on("message")
     def handle_msg(self, conn):
         msg = conn.recv()
+        self.logger.debug(f"Received {msg}")
         if msg is not None:
             assert len(msg) == 2
             self.recvbuff.put_nowait(msg.packets[1])
 
     def _recv(self):
         if not self.recvbuff.empty():
-            return json.loads(self.recvbuff.get_nowait())
+            data = json.loads(self.recvbuff.get_nowait())
+            if self.data_backup != None:
+                self.data_backup.dump(data)
+            return data
         return None
 
     def _send(self, data:dict):
@@ -66,6 +75,7 @@ class Net:
                 data = self.sendbuff.get_nowait()
                 assert type(data) == str
                 self.socket.send(data)
+                self.logger.debug(f"Sent {data}")
             await asyncio.sleep("0.01")
 
 
