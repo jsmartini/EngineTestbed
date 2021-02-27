@@ -11,11 +11,23 @@ class Net:
     sendbuff = stack(maxsize=512)
 
     socket = MeshSocket(
-        '0.0.0.0',
+        '127.0.0.1',
         port=4444,
     )
 
     def __init__(self, target, port, tries = 100, node_type = True):
+        """
+
+        py2p documentation (p2p-project)
+        https://dev-docs.p2p.today/python/tutorial/mesh.html
+
+        :param target: target computer
+        :param port: target port
+        :param tries: timeout
+        :param node_type: True -> initially connecting, False -> initially listening
+                -if both try to connect at once it disconnects both
+
+        """
         self.logger = logging.getLogger("Network")
         if node_type:
             for i in range(tries):
@@ -24,8 +36,9 @@ class Net:
                     self.logger.info(f"Connected to {target}:{port}")
                 except BaseException as e:
                     self.logger.info(f"\rFailed to Connect to {target}:{port} ({i}/{tries})")
-        while not self.socket.routing_table:
-            sleep(1)
+        else:
+            while not self.socket.routing_table:
+                sleep(1)
 
     @socket.on("connect")
     def connection(self):
