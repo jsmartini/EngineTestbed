@@ -6,6 +6,7 @@ import asyncio
 import json
 from util import DataBackup
 import socket
+from uuid import uuid4
 
 def get_ip_address():
     #from stackoverflow cause Im lazy
@@ -36,22 +37,29 @@ class Net:
                 -if both try to connect at once it disconnects both
 
         """
+        try:
+            self.logger = logging.getLogger("Networking")
+            if node_type:
+                i = 0
+                while not self.socket.routing_table and i < tries:
+                    try:
+                        self.socket.connect(target, port)
+                        self.logger.info(f"Connected to {target}:{port}")
+                        break
+                    except BaseException as e:
+                        self.logger.info(f"\rFailed to Connect to {target}:{port} ({i}/{tries})")
+                        i+=1
+                if not self.socket.routing_table:
+                    exit(-1)
+            else:
 
-        self.logger = logging.getLogger("Networking")
-        if node_type:
-            for i in range(tries):
-                try:
-                    self.socket.connect(target, port)
-                    self.logger.info(f"Connected to {target}:{port}")
-                except BaseException as e:
-                    self.logger.info(f"\rFailed to Connect to {target}:{port} ({i}/{tries})")
-            if not self.socket.routing_table:
-                raise("Could Not Connect")
-        else:
-            while not self.socket.routing_table:
-                self.logger.info("Waiting for Connection")
-                sleep(1)
-            self.logger.info("Connected")
+                while not self.socket.routing_table:
+                    self.logger.info("Waiting for Connection")
+                    sleep(1)
+                self.logger.info("Connected")
+        except BaseException as e:
+            print(e)
+            print(self.socket.status)
         if isinstance(data_backup, DataBackup):
             self.data_backup = data_backup
         else:
