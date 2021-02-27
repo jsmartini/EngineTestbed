@@ -4,6 +4,50 @@ net:
 
 data:
   dir: ""
-  prefix: ""
+  prefix: "testdata"
   postfix: ".json"
 
+pc: ""
+  #pc settings
+
+
+rpi:
+  #rpi settings
+  GPIO:
+    #functionality
+      #valve
+        #2way
+        #3way
+    valves:
+      pressurize:
+        v:
+      lox_vent:
+        v:
+      kerosene_vent:
+        v:
+      lox_dump:
+        v:
+      kerosene_dump:
+        v:
+
+    #pressure transducer i2c scheme addr -> i2c address, threshold <psi>
+    pressure:
+      p1:
+        addr:
+        threshold:
+      p2:
+        addr:
+        threshold:
+      p3:
+        addr:
+        threshold:
+      p4:
+        addr:
+        threshold:
+
+  loadcell:
+    #https://www.robotshop.com/media/files/pdf/phidgets-phidgetbridge-wheatstone-bridge-sensor-interface-w--enclosure-datasheet.pdf
+    #phidget22 api doc for 1046 Bridge
+    usb: "/dev/ttyUSB(Number here for usb device)"
+    channel: 1
+    serialnumber:

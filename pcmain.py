@@ -1,7 +1,8 @@
 from p2pnet import Net
 from util import DataBackup, init_logger, load_config
+import asyncio
 
-def main():
+async def main():
     config = load_config()
     init_logger("pc.log")
     #setup networking
@@ -16,9 +17,8 @@ def main():
     async_methods = [
         net.send(),
         datalogging.BackupLoop(),
-
     ]
-
+    return asyncio.gather(*async_methods)
 
 if __name__ == "__main__":
-    main()
+    asyncio.get_event_loop().run_until_complete(main())

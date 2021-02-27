@@ -4,7 +4,7 @@ import logging
 from time import sleep
 import asyncio
 import json
-from testbed.miscutils.util import DataBackup
+from util import DataBackup
 
 class Net:
 
@@ -57,7 +57,7 @@ class Net:
             assert len(msg) == 2
             self.recvbuff.put_nowait(msg.packets[1])
 
-    def _recv(self):
+    def recv(self):
         if not self.recvbuff.empty():
             data = json.loads(self.recvbuff.get_nowait())
             if self.data_backup != None:
@@ -65,7 +65,7 @@ class Net:
             return data
         return None
 
-    def _send(self, data:dict):
+    def to_send(self, data:dict):
         data = json.dumps(data)
         self.sendbuff.put_nowait(data)
 
