@@ -4,7 +4,7 @@ import asyncio
 if __name__ == "__main__":
     logging.basicConfig(filename="net_test_rpi.log", level=logging.INFO)
     net = Net(
-        "",
+        "192.168.1.213",
         4444,
         node_type=False
     )
