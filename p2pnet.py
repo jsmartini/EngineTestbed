@@ -5,6 +5,13 @@ from time import sleep
 import asyncio
 import json
 from util import DataBackup
+import socket
+
+def get_ip_address():
+    #from stackoverflow cause Im lazy
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    return s.getsockname()[0]
 
 class Net:
 
@@ -12,7 +19,7 @@ class Net:
     sendbuff = stack(maxsize=512)
 
     socket = MeshSocket(
-        '127.0.0.1',
+        get_ip_address(),
         port=4444,
     )
 
@@ -38,6 +45,8 @@ class Net:
                     self.logger.info(f"Connected to {target}:{port}")
                 except BaseException as e:
                     self.logger.info(f"\rFailed to Connect to {target}:{port} ({i}/{tries})")
+            if not self.socket.routing_table:
+                raise("Could Not Connect")
         else:
             while not self.socket.routing_table:
                 self.logger.info("Waiting for Connection")
