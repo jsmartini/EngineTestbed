@@ -11,10 +11,7 @@ class Net:
     recvbuff = stack(maxsize=512)
     sendbuff = stack(maxsize=512)
 
-    socket = MeshSocket(
-        '127.0.0.1',
-        port=4444,
-    )
+
 
     def __init__(self, target, port, tries = 100, node_type = True, data_backup = None):
         """
@@ -29,6 +26,10 @@ class Net:
                 -if both try to connect at once it disconnects both
 
         """
+        self.socket = MeshSocket(
+        '127.0.0.1',
+        port=4444,
+            )
         self.logger = logging.getLogger("Networking")
         if node_type:
             for i in range(tries):

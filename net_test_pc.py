@@ -3,12 +3,12 @@ import logging
 import asyncio
 
 if __name__ == "__main__":
-
+    logging.basicConfig(filename="net_test_pc.log", level=logging.INFO)
     net = Net(
-        "192.168.1.2",
+        "192.168.1.215",
         4444
     )
-    logging.basicConfig(filename="net_test_pc.log", level=logging.INFO)
+
     async def main():
         while 1:
             msg = input("PC>>")
