@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from p2pnet import Net
+from p2p2 import P2P2 as Net
 from HardwareManager import HardwareManager
 
 class RPiManager(HardwareManager):
@@ -17,13 +17,13 @@ class RPiManager(HardwareManager):
 
     async def Report(self):
         while 1:
-            super().net.to_send(
+            super().net.send(
                 {
                     "Type": "States",
                     "States": super().report_states()
                 }
             )
-            super().net.to_send(
+            super().net.send(
                 {
                     "Type": "Data",
                     "Data": super().report_data()

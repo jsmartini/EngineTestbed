@@ -5,6 +5,8 @@ import os
 from queue import LifoQueue as stack
 import json
 from sys import getsizeof as sizeof
+import threading
+import pickle
 
 def load_config(cfg = "config.yaml"):
     y = YAML()
@@ -24,9 +26,13 @@ class DataBackup:
         self.cfg = config["data"]
         self.cnt = 0
         self.logger = logging.getLogger("DataLogging")
+        self.loop = asyncio.new_event_loop()
+        threading.Thread(target=self.loop.run_until_complete).start()
+        f1 = asyncio.run_coroutine_threadsafe(self.BackupLoop(), self.loop)
 
-    def dump(self, data:dict):
-        self.buffer.put_nowait(data)
+
+    def dump(self, data):
+        self.buffer.put_nowait(pickle.dumps(data))
 
     def backup(self, data:dict):
         fname = f"{self.cnt}-{self.cfg['prefix']}.{self.cfg['postfix']}"

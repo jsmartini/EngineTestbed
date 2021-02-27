@@ -65,38 +65,6 @@ class Net:
         else:
             self.data_backup = None
 
-    @socket.on("connect")
-    def connection(self):
-        self.logger.info(f"Connected to {self.socket.routing_table.keys()}")
-
-    @socket.on("message")
-    def handle_msg(self, conn):
-        msg = conn.recv()
-        self.logger.debug(f"Received {msg}")
-        if msg is not None:
-            assert len(msg) == 2
-            self.recvbuff.put_nowait(msg.packets[1])
-
-    def recv(self):
-        if not self.recvbuff.empty():
-            data = json.loads(self.recvbuff.get_nowait())
-            if self.data_backup != None:
-                self.data_backup.dump(data)
-            return data
-        return None
-
-    def to_send(self, data:dict):
-        data = json.dumps(data)
-        self.sendbuff.put_nowait(data)
-
-    async def send(self):
-        while True:
-            if not self.sendbuff.empty():
-                data = self.sendbuff.get_nowait()
-                assert type(data) == str
-                self.socket.send(data)
-                self.logger.debug(f"Sent {data}")
-            await asyncio.sleep("0.01")
 
 
 

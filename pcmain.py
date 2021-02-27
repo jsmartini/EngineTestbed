@@ -1,4 +1,4 @@
-from p2pnet import Net
+from p2p
 from util import DataBackup, init_logger, load_config
 import asyncio
 
