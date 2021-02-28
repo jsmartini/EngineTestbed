@@ -14,7 +14,7 @@ def get_ip_address():
 
 class P2P2:
 
-    def __init__(self, target, port, szbuff=2048, backup = None):
+    def __init__(self, target, port, szbuff=2048, backup = None, auto_start_threading=False):
         self.wbuff = stack(maxsize=szbuff)
         self.rbuff = stack(maxsize=szbuff)
         self.socket = mesh.MeshSocket(get_ip_address(), port)
@@ -23,17 +23,20 @@ class P2P2:
             self.backup = backup
         else:
             self.backup = backup
-        self.loop1 = asyncio.new_event_loop()
-        threading.Thread(target=self.loop1.run_forever).start()
-        f1 = asyncio.run_coroutine_threadsafe(self._send_thread(), self.loop1)
-        self.loop2 = asyncio.new_event_loop()
-        threading.Thread(target=self.loop2.run_forever).start()
-        f2 = asyncio.run_coroutine_threadsafe(self._recv_thread(), self.loop2)
+        self.threading = auto_start_threading
+        if auto_start_threading:
+            self.loop1 = asyncio.new_event_loop()
+            threading.Thread(target=self.loop1.run_forever).start()
+            f1 = asyncio.run_coroutine_threadsafe(self._send_thread(), self.loop1)
+            self.loop2 = asyncio.new_event_loop()
+            threading.Thread(target=self.loop2.run_forever).start()
+            f2 = asyncio.run_coroutine_threadsafe(self._recv_thread(), self.loop2)
 
     def __del__(self):
         #absolute fucking trainwreck of memory management
-        self.loop1.call_soon_threadsafe(self.loop1.stop)
-        self.loop2.call_soon_threadsafe(self.loop2.stop)
+        if self.threading:
+            self.loop1.call_soon_threadsafe(self.loop1.stop)
+            self.loop2.call_soon_threadsafe(self.loop2.stop)
 
     def connect(self):
         try:
