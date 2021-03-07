@@ -19,29 +19,31 @@ rpi:
         #2way
         #3way
     valves:
+      pressurize_2way:
+        pins: []
       pressurize:
-        v:
+        pin:
       lox_vent:
-        v:
+        pin:
       kerosene_vent:
-        v:
+        pin:
       lox_dump:
-        v:
+        pin:
       kerosene_dump:
-        v:
+        pin:
 
     #pressure transducer i2c scheme addr -> i2c address, threshold <psi>
     pressure:
-      p1:
+      pt1:
         addr:
         threshold:
-      p2:
+      pt2:
         addr:
         threshold:
-      p3:
+      pt3:
         addr:
         threshold:
-      p4:
+      pt4:
         addr:
         threshold:
 
