@@ -1,6 +1,6 @@
 import argparse
-from pcmain import main as pc
-from rpimain import main as rpi
+from old.pcmain import main as pc
+from old.rpimain import main as rpi
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

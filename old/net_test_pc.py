@@ -3,7 +3,7 @@ import logging
 import asyncio
 
 if __name__ == "__main__":
-    logging.basicConfig(filename="net_test_pc.log", level=logging.INFO)
+    logging.basicConfig(filename="../net_test_pc.log", level=logging.INFO)
     net = P2P2(
         "192.168.1.215",
         4444

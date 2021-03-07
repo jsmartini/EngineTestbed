@@ -1,7 +1,6 @@
 import logging
-import asyncio
 from p2p2 import P2P2 as Net
-from HardwareManager import HardwareManager
+from old.HardwareManager import HardwareManager
 
 class RPiManager(HardwareManager):
 

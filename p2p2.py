@@ -7,7 +7,6 @@ import threading
 from util import DataBackup, load_config
 
 def get_ip_address():
-    #from stackoverflow cause Im lazy
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     return s.getsockname()[0]
@@ -50,6 +49,7 @@ class P2P2:
             msg = self.socket.recv()
             if msg != None:
                 self.rbuff.put(pickle.loads(msg.packets[1]))
+            await asyncio.sleep(0.1)
 
     async def _send_thread(self):
         while 1:
@@ -57,6 +57,7 @@ class P2P2:
                 self.socket.send(
                     pickle.dumps(self.wbuff.get())
                 )
+            await asyncio.sleep(0.1)
 
     def send(self, data):
         self.wbuff.put_nowait(data)

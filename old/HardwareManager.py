@@ -1,9 +1,6 @@
 import platform
 import logging
 from p2p2 import P2P2 as Net
-from smbus2 import SMBus, i2c_msg
-from RPiManager import RPiManager
-from Phidget22.Phidget import *
 from Phidget22.Devices import VoltageRatioInput
 from queue import LifoQueue as stack
 
