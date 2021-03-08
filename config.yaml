@@ -19,6 +19,7 @@ rpi:
         #2way
         #3way
     valves:
+
       pressurize_2way:
         pins: []
       pressurize:
@@ -30,6 +31,10 @@ rpi:
       lox_dump:
         pin:
       kerosene_dump:
+        pin:
+      enginestart_delay:
+        time_ms:
+      igniter:
         pin:
 
     #pressure transducer i2c scheme addr -> i2c address, threshold <psi>
