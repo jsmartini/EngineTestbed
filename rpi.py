@@ -10,6 +10,12 @@ import threading
 from time import sleep
 import logging
 import pickle
+import datetime as dt
+gettimestring = dt.datetime.today().strftime("%y_%m_%d_%H_%M_%S")
+logging.basicConfig(filename=f"{gettimestring}-run.log", level=logging.DEBUG)
+
+global LOGGER
+LOGGER = logging.getLogger("GLOBAL")
 
 if platform.system().upper() == "WINDOWS":
     #windows testing
@@ -41,8 +47,9 @@ DUMP = pickle.dumps
 # opening the fluid valve
 
 for system in GPIOVALVES.keys():
-    GPIO.setup(int(GPIOVALVES[system]), GPIO.OUT)
-    GPIO.output(int(GPIOVALVES[system]), GPIO.HIGH)
+    print(system)
+    GPIO.setup(int(GPIOVALVES[system]["pin"]), GPIO.OUT)
+    GPIO.output(int(GPIOVALVES[system]["pin"]), GPIO.HIGH)
 
 
 from abc import ABC, abstractmethod
@@ -86,6 +93,24 @@ class PressureMonitor(GPIOHandler):
     Managed by this class (venting)
     """
 
+    class PID(object):
+
+        def __init__(self, setvalue, k_values, ts):
+            self.ts = ts
+            self.setvalue = setvalue
+            self.error = 0
+            self.ei = 0
+            self.k = k_values
+            self.ERR = lambda val: self.setvalue - val
+
+        def update(self, Input):
+            err = self.ERR(Input)
+            ep = self.k["P"] * err
+            ed = self.k["D"] * (err - self.error) / self.ts
+            self.ei += self.k["I"] * (self.ts * err)
+            self.error = err
+            return ep + ed + self.ei
+
     data = pd.DataFrame(["time", "pressure_lox", "pressure_kerosene"])
 
     def vent(self, valve, time_ms:float):
@@ -121,6 +146,7 @@ class GPIOHypervisor(GPIOHandler):
     """
 
     def __init__(self):
+        LOGGER.debug(f"{self}")
         super(GPIOHypervisor, self).__init__()
         self.cmd = Stack(maxsize=4)
         self.logger = logging.getLogger("GPIO Hypervisor")
@@ -143,7 +169,7 @@ class GPIOHypervisor(GPIOHandler):
     def update_states(self, pin, output):
         self.states[str(pin)] = output
 
-    async def handle(self):
+    async def handler(self):
         while 1:
             if not self.cmd.empty():
                 cmd = self.get_new_cmd()
@@ -179,6 +205,7 @@ class LoadCell(VoltageRatioInput):
     data = pd.DataFrame(["time", "load"])
 
     def __init__(self):
+        LOGGER.debug(f"{self}")
         super(LoadCell, self).__init__()
         super().setOnVoltageRatioChangeHandler(self.handler)
         super().openWaitForAttachment(5000)
@@ -203,11 +230,12 @@ class LoadCell(VoltageRatioInput):
 import websockets as ws
 
 
-class Stream(object):
+class NetworkStream(object):
     """
     sends data and listens for commands
     """
     def __init__(self):
+        LOGGER.debug(f"{self}")
         self.SEND = Stack(maxsize=256)
         self.CMD = Stack(maxsize=256)
 
@@ -241,10 +269,11 @@ class Stream(object):
 class HyperVisor(object):
 
     def __init__(self):
-        self.net = Stream()  #not mission critical
+        LOGGER.debug(f"{self}")
+        self.net = NetworkStream()  #not mission critical
         self.PressureMonitor = PressureMonitor()    #mission critical
         self.GPIOHypervisor = GPIOHypervisor()  #not mission critical
-        self.LoadCell = LoadCell()  #not mission critical
+        #self.LoadCell = LoadCell()  #not mission critical
         self.start_pressure_monitor() #mission critical
 
     async def handler(self):
@@ -253,7 +282,7 @@ class HyperVisor(object):
             statistics = {
                 "pressure":DUMP(self.PressureMonitor.report()),
                 "gpio": DUMP(self.GPIOHypervisor.report()),
-                "loadcell": DUMP(self.LoadCell.report())
+                #"loadcell": DUMP(self.LoadCell.report())
             }
             self.net.data(statistics)
             if (r := self.net.cmd()) != None:
@@ -268,11 +297,11 @@ class HyperVisor(object):
 
     async def main(self):
         return asyncio.gather(*[
-            ws.serve(self.net.handler, "localhost", 444),
-            self.LoadCell.log(),
+            ws.serve(self.net.handler, "localhost", 4444),
+            #self.LoadCell.log(),
             self.handler(),
             self.GPIOHypervisor.handler(),
-            self.LoadCell.backup()
+            #self.LoadCell.backup()
         ])
 
 def main():

@@ -19,21 +19,20 @@ rpi:
         #2way
         #3way
     valves:
-
-      pressurize_2way:
-        pins: []
       pressurize:
-        pin:
+        pin: 5
       lox_vent:
-        pin:
+        pin: 20
       kerosene_vent:
-        pin:
+        pin: 21
       lox_dump:
-        pin:
+        pin: 19
       kerosene_dump:
-        pin:
+        pin: 22
+
+    engine:
       enginestart_delay:
-        time_ms:
+        time_ms: 1000
       igniter:
         pin:
 
