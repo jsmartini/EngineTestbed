@@ -1,11 +1,11 @@
-from .p2p2 import P2P2 as NET
+#from . p2p2 import P2P2 as NET
 import platform
-from .util import load_config
+from util import load_config
 import asyncio
 from queue import LifoQueue as Stack
 import pandas as pd
 from Phidget22 import *
-from Phidget22.Devices.VoltageRatioInput import VoltageRatioInput
+from Phidget22.Devices.VoltageRatioInput import *
 import threading
 from time import sleep
 import logging
@@ -13,7 +13,7 @@ import pickle
 
 if platform.system().upper() == "WINDOWS":
     #windows testing
-    import RPiSim.GPIO as GPIO
+    from RPiSim.GPIO import GPIO
 else:
     #real hardware
     import RPi.GPIO as GPIO
@@ -24,11 +24,11 @@ global GPIOVALVES
 global GPIOPRESSURE
 global GPIOLOADCELL
 global DUMP
-CONFIGURATION = load_config()
+CONFIGURATION = load_config()["rpi"]
 GPIOCFG = CONFIGURATION["GPIO"]
 GPIOVALVES = GPIOCFG["valves"]
 GPIOPRESSURE = GPIOCFG["pressure"]
-GPIOLOADCELL = GPIOCFG["loadcell"]
+GPIOLOADCELL = CONFIGURATION["loadcell"]
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 DUMP = pickle.dumps
@@ -41,13 +41,17 @@ DUMP = pickle.dumps
 # opening the fluid valve
 
 for system in GPIOVALVES.keys():
-    GPIO.setup(GPIOVALVES[system], GPIO.OUT)
-    GPIO.output(GPIOVALVES[system], GPIO.HIGH)
+    GPIO.setup(int(GPIOVALVES[system]), GPIO.OUT)
+    GPIO.output(int(GPIOVALVES[system]), GPIO.HIGH)
 
 
 from abc import ABC, abstractmethod
 
 class CMD:
+
+    """
+    will implement protobufs or something later
+    """
 
     def __init__(self, cmd_dict:dict):
         self.cmd = cmd_dict
@@ -168,28 +172,76 @@ class GPIOHypervisor(GPIOHandler):
     def report(self):
         return self.states
 
-class LoadCell(object):
+import time
+
+class LoadCell(VoltageRatioInput):
 
     data = pd.DataFrame(["time", "load"])
 
     def __init__(self):
-        pass
+        super(LoadCell, self).__init__()
+        super().setOnVoltageRatioChangeHandler(self.handler)
+        super().openWaitForAttachment(5000)
 
-    async def log(self):
-        pass
+    def handler(self, vratio):
+        self.data = self.data.append(
+            {
+                "time": time.time(),
+                "load": vratio
+            },
+            ignore_index = True
+        )
 
-    def backup(self):
-        pass
+    async def backup(self):
+        while 1:
+            self.data.to_csv(f"{time.time()}-lc_backup.csv", index=False)
+            await asyncio.sleep(0.3)
 
     def report(self):
-        self.backup()
         return self.data
+
+import websockets as ws
+
+
+class Stream(object):
+    """
+    sends data and listens for commands
+    """
+    def __init__(self):
+        self.SEND = Stack(maxsize=256)
+        self.CMD = Stack(maxsize=256)
+
+    def data(self, data):
+        self.SEND.put_nowait(pickle.dumps(data))
+
+    def cmd(self):
+        if not self.CMD.empty():
+            return pickle.loads(self.CMD.get_nowait())
+        return None
+
+    async def _cmd(self, websocket, path):
+        cmd = await websocket.recv()
+        self.CMD.put_nowait(cmd)
+
+    async def _data(self, websocket, path):
+        if not self.SEND.empty():
+            await websocket.send(self.SEND.get_nowait())
+
+    async def handler(self, websocket, path):
+        recv = asyncio.ensure_future(self._cmd(websocket, path))
+        send = asyncio.ensure_future(self._data(websocket, path))
+        done, pending = await asyncio.wait(
+            [send, recv],
+            return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in pending:
+            task.cancel()
 
 
 class HyperVisor(object):
 
     def __init__(self):
-        self.net = NET(auto_start_threading=False)  #not mission critical
+        self.net = Stream()  #not mission critical
         self.PressureMonitor = PressureMonitor()    #mission critical
         self.GPIOHypervisor = GPIOHypervisor()  #not mission critical
         self.LoadCell = LoadCell()  #not mission critical
@@ -203,28 +255,27 @@ class HyperVisor(object):
                 "gpio": DUMP(self.GPIOHypervisor.report()),
                 "loadcell": DUMP(self.LoadCell.report())
             }
-            self.net.send(statistics)
-            if (r := self.net.recv()) != None:
+            self.net.data(statistics)
+            if (r := self.net.cmd()) != None:
                 if "cmd" in r.keys():
                     self.GPIOHypervisor.put(r["cmd"])
             await asyncio.sleep(0.1)
 
     def start_pressure_monitor(self):
         self.pressure_loop = asyncio.new_event_loop()
-        threading.Thread(target=self.pressure_loop).start()
+        threading.Thread(target=self.pressure_loop.run_forever).start()
         self.pressure = asyncio.run_coroutine_threadsafe(self.PressureMonitor.handler(), self.pressure_loop)
 
     async def main(self):
         return asyncio.gather(*[
+            ws.serve(self.net.handler, "localhost", 444),
             self.LoadCell.log(),
             self.handler(),
             self.GPIOHypervisor.handler(),
-            self.net._send_thread(),
-            self.net._recv_thread()
+            self.LoadCell.backup()
         ])
 
 def main():
-
     hype = HyperVisor()
     loop_default = asyncio.get_event_loop()
     loop_default.run_until_complete(hype.main())

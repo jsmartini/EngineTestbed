@@ -11,8 +11,8 @@ import pickle
 def load_config(cfg = "config.yaml"):
     y = YAML()
     with open(cfg, "r") as f:
-        y.load(f)
-        return y
+        config = y.load(f)
+        return config
 
 def init_logger(logfile:str, level = logging.INFO):
     logging.basicConfig(filename=logfile, level=level)
