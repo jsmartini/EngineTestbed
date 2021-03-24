@@ -38,18 +38,20 @@ rpi:
 
     #pressure transducer i2c scheme addr -> i2c address, threshold <psi>
     pressure:
+      sampling:
+        ts: 0.01
+      Kerosene:
+        Threshold: 750
+      RP1:
+        Threshold: 750
       pt1:
         addr:
-        threshold:
       pt2:
         addr:
-        threshold:
       pt3:
         addr:
-        threshold:
       pt4:
         addr:
-        threshold:
 
   loadcell:
     #https://www.robotshop.com/media/files/pdf/phidgets-phidgetbridge-wheatstone-bridge-sensor-interface-w--enclosure-datasheet.pdf
